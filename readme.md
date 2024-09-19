@@ -7,3 +7,4 @@ Requirements:
 - use miniconda or other to install the env (`env.yml`)
 - have or create an earthaccess login
 
+![image](https://github.com/user-attachments/assets/8c4c5847-5eb4-48c0-9324-2e2538a26d4e)
