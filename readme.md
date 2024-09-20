@@ -8,5 +8,6 @@ Requirements:
 - have or create an earthaccess login
 
 
-![image](https://github.com/user-attachments/assets/f627725d-6c74-466f-b2b4-f12e68d484fc)
+![image](https://github.com/user-attachments/assets/3be08933-9993-41a7-b279-baff9ef71bec)
+
 
