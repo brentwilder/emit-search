@@ -50,7 +50,7 @@ def get_image_selector(lat, lon):
     df = pd.DataFrame(available_images)
 
     # Display the DataFrame
-    display(df)
+    #display(df)
     
     # Create a dropdown widget for selecting the date
     date_selector = widgets.Dropdown(
