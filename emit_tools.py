@@ -212,11 +212,12 @@ def emit_xarray(filepath, ortho=False, qmask=None, unpacked_bmask=None):
         # Set a dummy granule_id since BytesIO has no filename
         granule_id = 'dummy_id'
     else:
-        granule_id = os.path.splitext(os.path.basename(filepath))[0]
+        granule_id = 'dummy_id'
 
 
     # Read in Data as Xarray Datasets
     engine, wvl_group = "h5netcdf", None
+
 
     ds = xr.open_dataset(filepath, engine=engine)
     loc = xr.open_dataset(filepath, engine=engine, group="location")
