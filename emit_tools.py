@@ -982,3 +982,4 @@ def select_pixels(ds, coords):
         }
 
     return spectra_data
+
