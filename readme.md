@@ -10,6 +10,12 @@ To run,
 
 ![Screenshot 2024-11-14 at 13 41 12](https://github.com/user-attachments/assets/589b6f95-825e-40ef-b286-06cded73cc0d)
 
+
+![ezgif-4-66405313c6](https://github.com/user-attachments/assets/80447301-4c32-4e97-8014-063c62289086)
+
+
+
+
 ![Sample](data/test.png)
 
 
