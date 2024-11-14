@@ -15,7 +15,7 @@ To run,
 
 
 ### Example of the dynamic viewer
-![ezgif-4-66405313c6](https://github.com/user-attachments/assets/80447301-4c32-4e97-8014-063c62289086)
+![ezgif-4-4ca775b2b4](https://github.com/user-attachments/assets/a52b9d99-fc6c-4cc8-9b1a-9a88692e0165)
 
 
 
