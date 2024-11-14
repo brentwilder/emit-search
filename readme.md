@@ -8,6 +8,8 @@ To run,
 - have/create NASA earthaccess login
 - run `emit_search.ipynb`
 
+![Screenshot 2024-11-14 at 13 41 12](https://github.com/user-attachments/assets/589b6f95-825e-40ef-b286-06cded73cc0d)
 
 ![Sample](data/test.png)
+
 
