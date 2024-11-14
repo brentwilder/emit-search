@@ -32,6 +32,11 @@ from satsearch import Search
 import requests
 import ipywidgets as widgets
 from IPython.display import display
+import matplotlib.pyplot as plt
+from PIL import Image
+
+
+
 
 
 def get_image_selector(lat, lon):
@@ -43,50 +48,90 @@ def get_image_selector(lat, lon):
     lat (float): Latitude for image search
     lon (float): Longitude for image search
     """
+
     # Fetch available images
     available_images = get_images(lat, lon)
-    
-    # Convert the list of available images to a DataFrame
-    df = pd.DataFrame(available_images)
 
-    # Display the DataFrame
-    #display(df)
+    if 'error' in available_images:  # Handle case if no valid images found
+        print(available_images['error'])
+        return None
     
-    # Create a dropdown widget for selecting the date
+    # Create a dropdown menu with available images
     date_selector = widgets.Dropdown(
         options=[(img['start_datetime'], img) for img in available_images],
         description='Select Date:',
         style={'description_width': 'initial'}
     )
     
-    # Function to display URLs based on selected date
+    # Output widget to display the image
+    output = widgets.Output()
+
+    # URL container widgets that hold the selected URLs
+    png_url_widget = widgets.Text(
+        value='', 
+        description='PNG URL:', 
+        disabled=True,
+        layout=widgets.Layout(width='100%')
+    )
+    
+    rfl_url_widget = widgets.Text(
+        value='', 
+        description='RFL URL:', 
+        disabled=True,
+        layout=widgets.Layout(width='100%')
+    )
+    
+    # Function to display URLs and plot image
     def on_date_change(change):
+        output.clear_output()  # Clear previous output when the date changes
         selected_item = change['new']
         if selected_item:
-            urls = selected_item['netcdf_urls']
-            print(f"Available URLs for {selected_item['start_datetime']}:")
-            for url in urls:
-                print(url)
-
+            png_urls = selected_item['png_urls']
+            rfl_urls = selected_item['rfl_urls']
+            
+            # Display the URLs in their respective widgets
+            png_url_widget.value = png_urls[0] if png_urls else "No PNG found"
+            rfl_url_widget.value = rfl_urls[0] if rfl_urls else "No RFL found"
+            
+            # Plot the PNG image immediately after selection
+            with output:
+                if png_urls:
+                    selected_png_url = png_urls[0]
+                    response = requests.get(selected_png_url)
+                    if response.status_code == 200:
+                        img = Image.open(BytesIO(response.content))
+                        display(img)  # Display the new image in the widget
+                else:
+                    print("No PNG URL found.")
+    
     # Attach the function to the dropdown widget
     date_selector.observe(on_date_change, names='value')
 
-    # Display the dropdown widget
-    display(date_selector)
+    # Display the dropdown widget, output area, and URL text fields
+    display(date_selector, output, png_url_widget, rfl_url_widget)
+    
+    return png_url_widget, rfl_url_widget
+
+
+
+
+
 
 
 def get_images(lat, lon):
     try:
         # Define a bounding box around the point
         bbox = [lon - 0.1, lat - 0.1, lon + 0.1, lat + 0.1]
+        
         # Define the base CMR-STAC search URL for EMIT
         CMR_STAC_URL = 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD/?page=2'
+        
         # Perform the search
         search = Search(
             url=CMR_STAC_URL,
             bbox=bbox,
             collections=["EMITL2ARFL_001"],  # Ensure the collection ID is correct
-            limit=100
+            limit=5000
         )
         
         # Fetch items from the search
@@ -98,31 +143,40 @@ def get_images(lat, lon):
             properties = item._data.get('properties', {})
             start_datetime = properties.get('start_datetime', None)
             assets = item._data.get('assets', {})
-            
-            # Extract URLs for the NetCDF files from assets
-            netcdf_urls = [
-                asset['href'] for asset in assets.values() 
-                if 'href' in asset and 'data' in asset.get('roles', [])
-                and 'EMIT_L2A_RFL_' in asset['href']  # Ensure the pattern is present
-                and asset['href'].endswith('.nc')  # Ensure it ends with .nc
-                and 'RFLUNCERT' not in asset['href']  # Exclude RFLUNCERT
-                and 'MASK' not in asset['href']  # Exclude MASK
-            ]
 
-            if start_datetime and netcdf_urls:  # Ensure both datetime and URLs are valid
+            # List of desired asset substrings (RFL, PNG)
+            #desired_assets = ['_RFL_', '_png_']
+            filtered_asset_links = {'png': [], 'rfl': []}  # Dictionary to separate URLs
+
+            # Filter assets based on desired substrings
+            for asset in assets.values():
+                asset_url = asset.get('href', None)
+                if asset_url:
+                    asset_name = asset_url.split('/')[-1]
+                    if 'png' in asset_name:
+                        filtered_asset_links['png'].append(asset_url)
+                    elif 'EMIT_L2A_RFL' in asset_name:
+                        filtered_asset_links['rfl'].append(asset_url)
+
+            if start_datetime and (filtered_asset_links['png'] or filtered_asset_links['rfl']):
                 available_images.append({
                     'start_datetime': start_datetime,
-                    'netcdf_urls': netcdf_urls  # Store all valid URLs
+                    'png_urls': filtered_asset_links['png'],  # PNG URLs
+                    'rfl_urls': filtered_asset_links['rfl']   # RFL URLs
                 })
 
         if not available_images:
             return {'error': 'No valid images found for the given coordinates'}
         
-        return available_images  # Return available images
-        
+        return available_images  # Return available images with both PNG and RFL URLs
     except Exception as e:
         print(f"Error: {e}")
         return {'error': 'An error occurred while fetching images'}
+
+
+
+
+
 
 
 
@@ -839,3 +893,92 @@ def ortho_browse(url, glt, spatial_ref, geotransform, white_background=True):
     da = xr.DataArray(ortho_data, dims=["band", "y", "x"], coords=coords)
     da.rio.write_crs(spatial_ref, inplace=True)
     return da
+
+
+
+
+def save_spectra_csv(spectra_data, csv_file_path):
+    '''
+    takes dictionary prepared during notebook and saves to a csv
+    
+    '''
+
+    csv_data = []
+
+    # Loop through each point
+    for point_id, data in spectra_data.items():
+
+        wavelengths = data['Wavelength']
+        reflectance = data['Reflectance']
+        lat = data['lat']
+        lon = data['lon']
+        
+        
+        # Create a dictionary for this row of data
+        for i in range(len(wavelengths)):
+            row = {
+                'ID': point_id,
+                'Latitude': lat,
+                'Longitude': lon,
+                'Wavelength': wavelengths[i],
+                'Reflectance': reflectance[i],
+            }
+            csv_data.append(row)
+
+    df = pd.DataFrame(csv_data)
+    df.to_csv(csv_file_path, index=False)
+
+    return
+
+
+
+
+
+
+def select_pixels(ds, coords):
+    """
+    Function to select pixels from an EMIT dataset and compute reflectance and standard deviation.
+    
+    Parameters:
+    - ds: xarray.Dataset containing the EMIT data.
+    - coords: List of tuples containing latitude and longitude coordinates.
+    - neighbor: Boolean flag to indicate whether to compute neighborhood stats (True for 3x3 window).
+    
+    Returns:
+    - spectra_data: Dictionary containing the spectra data for each point.
+    """
+
+    reflectance = ds['reflectance']
+    wavelengths = ds['wavelengths'].values
+
+    # Prepare an empty dictionary to store spectra data
+    spectra_data = {}
+
+    for i, (lat, lon) in enumerate(coords):
+        lat_idx = np.abs(ds.latitude.values - lat).argmin()
+        lon_idx = np.abs(ds.longitude.values - lon).argmin()
+
+        # id
+        s_id = f'Pt{i+1}'
+
+        # Generate a random color 
+        random_color = np.random.rand(3,) 
+
+        reflectance_at_pixel = reflectance[lat_idx, lon_idx, :].values
+
+        # Remove bad bands
+        reflectance_at_pixel[reflectance_at_pixel < 0] = np.NaN
+
+        # Save 
+        spectra_data[s_id] = {
+            'lat_idx': lat_idx,
+            'lon_idx': lon_idx,
+            'lat': lat,
+            'lon': lon,
+            'Wavelength': wavelengths,
+            'Reflectance': reflectance_at_pixel,
+            'Standard_Deviation': [np.nan] * len(wavelengths),
+            'Color': random_color 
+        }
+
+    return spectra_data
