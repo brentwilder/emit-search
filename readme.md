@@ -1,6 +1,6 @@
 ## EMIT-Search
 
-This method is built from some emit-tools functions (see [repo](https://github.com/nasa/EMIT-Data-Resources)), but also has some added features that make working with EMIT data more convenient. Nice things added here include a speedy quickview function that pulls up images based on your latitude and longitude. Another advantage is that it will help you find the URL for your site your interested in. It can also allow you to easily explore the image a bit and test different sites.
+This method is built from some emit-tools functions (see [repo](https://github.com/nasa/EMIT-Data-Resources)), but also has some added features to help for data exploration. Main advantage is the quickview functionality that pulls up images based on latitude and longitude. Data can be explored and saved. Likely AppEARS is faster at grabbing subsets, but this may still be useful for troubleshooting / data exploration.
 
 To run, 
 - download zip of this code using green button above
