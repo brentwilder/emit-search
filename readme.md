@@ -9,4 +9,4 @@ To run,
 - run `emit_search.ipynb`
 
 
-![ezgif-3-267c86560b](https://github.com/user-attachments/assets/fa2aeac0-b3e7-4a7d-ac2c-8c1b043a689e)
+![ezgif-3-beed10cc07](https://github.com/user-attachments/assets/24f165b3-6acc-4f02-8686-3706d47ea565)
