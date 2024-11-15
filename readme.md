@@ -9,17 +9,4 @@ To run,
 - run `emit_search.ipynb`
 
 
-### Example of the quickview
-![Screenshot 2024-11-14 at 13 41 12](https://github.com/user-attachments/assets/589b6f95-825e-40ef-b286-06cded73cc0d)
-
-
-
-### Example of the dynamic viewer
-![ezgif-4-4ca775b2b4](https://github.com/user-attachments/assets/a52b9d99-fc6c-4cc8-9b1a-9a88692e0165)
-
-
-
-### Example of subsetting points/sites
-![Sample](data/test.png)
-
-
+![ezgif-3-267c86560b](https://github.com/user-attachments/assets/fa2aeac0-b3e7-4a7d-ac2c-8c1b043a689e)
