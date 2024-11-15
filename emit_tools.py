@@ -9,6 +9,16 @@ Last Updated: 05/09/2024
 TO DO: 
 - Rework masking functions to be more flexible
 - Update format to match AppEEARS outputs
+
+
+NOTE:
+This was reworked a bit from the last updated (see above) by myself (Brent). Mostly a lot of front-end stuff to make it loook nice and 
+work well for daata exploration.
+
+Most of this code is not mine!
+
+
+
 """
 
 # Packages used
@@ -31,12 +41,11 @@ from fsspec.implementations.http import HTTPFile
 from satsearch import Search
 import requests
 import ipywidgets as widgets
+from ipywidgets import Button, VBox
 from IPython.display import display
 import matplotlib.pyplot as plt
 from PIL import Image
-
-
-
+import random
 
 
 def get_image_selector(lat, lon):
@@ -130,7 +139,7 @@ def get_images(lat, lon):
         search = Search(
             url=CMR_STAC_URL,
             bbox=bbox,
-            collections=["EMITL2ARFL_001"],  # Ensure the collection ID is correct
+            collections=["EMITL2ARFL_001"],
             limit=5000
         )
         
@@ -217,7 +226,6 @@ def emit_xarray(filepath, ortho=False, qmask=None, unpacked_bmask=None):
 
     # Read in Data as Xarray Datasets
     engine, wvl_group = "h5netcdf", None
-
 
     ds = xr.open_dataset(filepath, engine=engine)
     loc = xr.open_dataset(filepath, engine=engine, group="location")
@@ -968,7 +976,7 @@ def select_pixels(ds, coords):
         reflectance_at_pixel = reflectance[lat_idx, lon_idx, :].values
 
         # Remove bad bands
-        reflectance_at_pixel[reflectance_at_pixel < 0] = np.NaN
+        reflectance_at_pixel[reflectance_at_pixel < 0] = np.nan
 
         # Save 
         spectra_data[s_id] = {
@@ -978,9 +986,166 @@ def select_pixels(ds, coords):
             'lon': lon,
             'Wavelength': wavelengths,
             'Reflectance': reflectance_at_pixel,
-            'Standard_Deviation': [np.nan] * len(wavelengths),
             'Color': random_color 
         }
 
     return spectra_data
 
+
+
+
+
+
+
+
+
+
+def dynamic_plot(reflectance, latitudes, longitudes, wavelengths, rgb_image_eq):
+  
+    img_height, img_width, bands = reflectance.shape
+
+    # Variables to store points 
+    points = []
+    df = None
+    can_add_points = False
+
+    def on_click(event):
+        nonlocal can_add_points
+        if can_add_points and event.inaxes == ax1:  # Only click inside and "Add Points" mode
+            x, y = int(round(event.xdata)), int(round(event.ydata))
+            if 0 <= x < img_width and 0 <= y < img_height:
+                color = [random.random(), random.random(), random.random()]
+                points.append((x, y, color))
+                ax1.plot(x, y, 'o', color=color, markersize=5) 
+                ax2.plot(wavelengths, reflectance[y, x, :], color=color, lw=1)  
+                fig.canvas.draw_idle()
+
+    # Function to save points and store DataFrame in the widget
+    def save_points(event):
+        nonlocal points, df
+        if points:
+            point_data = []
+            p = 0
+            for x, y, color in points:
+                lat = latitudes[y]
+                lon = longitudes[x]
+                reflectance_values = reflectance[y, x, :].values 
+
+                for i, wavelength in enumerate(wavelengths):
+                    point_entry = {
+                        'ID': f'Pt{p+1}',
+                        'lat': lat,
+                        'lon': lon,
+                        'Wavelength': wavelength,
+                        'Reflectance': reflectance_values[i]
+                    }
+                    point_data.append(point_entry)
+                p += 1
+            
+            # Save the DataFrame to the widget
+            widget.data_frame = pd.DataFrame(point_data)
+            print("DataFrame saved to widget.")
+
+    # Function to clear points 
+    def clear_points(event):
+        nonlocal points, df
+        points = [] 
+        df = None 
+        ax1.clear() 
+        ax2.clear() 
+        ax1.imshow(rgb_image_eq) 
+        ax1.set_xticks([])  
+        ax1.set_yticks([]) 
+        ax2.set_xlabel('Wavelength (nm)', color='yellow', fontsize=10, 
+                       bbox=dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.3'))
+        ax2.set_ylabel('Reflectance', color='yellow', fontsize=10, 
+                       bbox=dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.3'))
+        ax2.set_facecolor('black')
+
+        for spine in ax2.spines.values():
+            spine.set_edgecolor('yellow')
+            spine.set_linewidth(2)
+        ax2.tick_params(axis='both', colors='yellow', labelcolor='yellow')
+        for label in ax2.get_xticklabels() + ax2.get_yticklabels():
+            label.set_bbox(dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.1'))
+        fig.canvas.draw_idle()
+
+    # Function to activate add points mode
+    def activate_add_point(event):
+        nonlocal can_add_points
+        can_add_points = True 
+
+    # Function to deactivate add points mode
+    def deactivate_add_point(event):
+        nonlocal can_add_points
+        can_add_points = False  # Disable 
+
+    # Create the figure and plot the image
+    fig, ax1 = plt.subplots(figsize=(7, 5))
+    img_display = ax1.imshow(rgb_image_eq)
+    ax1.set_xticks([])  
+    ax1.set_yticks([])  
+
+    for spine in ax1.spines.values():
+        spine.set_visible(False)
+
+    ax2 = fig.add_axes([0.7, 0.1, 0.25, 0.3]) 
+    spectrum_line, = ax2.plot([], [], lw=2, color='yellow')
+    ax2.set_xlabel('Wavelength (nm)', color='yellow', fontsize=10, 
+                   bbox=dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.3'))
+    ax2.set_ylabel('Reflectance', color='yellow', fontsize=10, 
+                   bbox=dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.3'))
+    ax2.set_facecolor('black')
+
+    for spine in ax2.spines.values():
+        spine.set_edgecolor('yellow')  
+        spine.set_linewidth(2) 
+
+    ax2.tick_params(axis='both', colors='yellow', labelcolor='yellow')
+
+    for label in ax2.get_xticklabels() + ax2.get_yticklabels():
+        label.set_bbox(dict(facecolor='black', edgecolor='yellow', boxstyle='round,pad=0.1'))
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    # Buttons
+    add_point_button = Button(description="Add points")
+    add_point_button.on_click(activate_add_point)
+
+    deactivate_button = Button(description="Stop adding points")
+    deactivate_button.on_click(deactivate_add_point)
+
+    save_button = Button(description="Save points to `df`")
+    save_button.on_click(save_points)
+
+    clear_button = Button(description="Clear points")
+    clear_button.on_click(clear_points)
+
+    display(VBox([add_point_button, deactivate_button, save_button, clear_button]))
+
+    # Function to update the spectral plot when the mouse moves
+    def update_spectral_plot(x, y):
+        spectrum = reflectance[y, x, :]
+        spectrum[spectrum == -0.01] = np.nan
+        spectrum_line.set_data(wavelengths, spectrum)
+        ax2.relim()
+        ax2.autoscale_view()
+        fig.canvas.draw_idle()
+
+    def on_mouse_move(event):
+        if event.xdata is not None and event.ydata is not None:
+            x, y = int(round(event.xdata)), int(round(event.ydata))
+            if 0 <= x < img_width and 0 <= y < img_height:
+                update_spectral_plot(x, y)
+                lat = latitudes[y]
+                lon = longitudes[x]
+                ax1.set_title(f'Latitude: {lat:.4f}, Longitude: {lon:.4f}')
+
+    fig.canvas.mpl_connect('motion_notify_event', on_mouse_move)
+
+    plt.show()
+
+    # Create the widget to hold pandas
+    widget = widgets.Widget()
+    widget.data_frame = None  
+    return widget
